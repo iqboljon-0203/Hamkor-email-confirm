@@ -191,8 +191,9 @@
       // Bu qiymatlarni o'z Supabase loyihangizdan oling
       const SUPABASE_URL = window.location.hostname.includes('localhost')
         ? 'https://skmoaeimhufhetmntiie.supabase.co' // Development
-        : 'https://skmoaeimhufhetmntiie.supabase.co'; // Production - o'zgartiring!
-      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbW9hZWltaHVmaGV0bW50aWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMjY4NjIsImV4cCI6MjA3ODYwMjg2Mn0.TkUAf9S2may5WIjXhCWWsKHwlAKmhEfGp8_PNLJfHzo'; // O'zgartiring
+        : 'https://skmoaeimhufhetmntiie.supabase.co'; // Production
+      const SUPABASE_ANON_KEY =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbW9hZWltaHVmaGV0bW50aWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMjY4NjIsImV4cCI6MjA3ODYwMjg2Mn0.TkUAf9S2may5WIjXhCWWsKHwlAKmhEfGp8_PNLJfHzo';
 
       async function confirmEmail() {
         const icon = document.getElementById('icon');
@@ -256,12 +257,18 @@
           return;
         }
 
+        // Xatolik ma'lumotlarini saqlash uchun o'zgaruvchilar
+        let verifyUrl = null;
+        let responseStatus = null;
+        let responseData = null;
+        let errorDetails = null;
+
         try {
           // Supabase email confirmation uchun to'g'ri endpoint
           // Supabase'da email confirmation avtomatik ishlaydi, lekin biz verify qilishimiz kerak
 
           // Variant 1: Token hash orqali verify qilish
-          let verifyUrl;
+
           if (tokenHash && !tokenHash.includes('.')) {
             // Token hash format
             verifyUrl = new URL(`${SUPABASE_URL}/auth/v1/verify`);
@@ -294,16 +301,38 @@
 
           console.log('Verifying URL:', verifyUrl.toString());
 
-          const response = await fetch(verifyUrl.toString(), {
-            method: 'GET',
-            headers: {
-              apikey: SUPABASE_ANON_KEY,
-            },
-          });
+          let response;
+          try {
+            response = await fetch(verifyUrl.toString(), {
+              method: 'GET',
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+              },
+            });
 
-          console.log('Response status:', response.status);
-          const data = await response.json();
-          console.log('Response data:', data);
+            responseStatus = response.status;
+            console.log('Response status:', responseStatus);
+
+            // Response body'ni olish
+            const responseText = await response.text();
+            console.log('Response text:', responseText);
+
+            try {
+              responseData = JSON.parse(responseText);
+              console.log('Response data:', responseData);
+            } catch (parseError) {
+              responseData = { raw: responseText };
+              console.log('Response is not JSON:', responseText);
+            }
+          } catch (fetchError) {
+            console.error('Fetch error:', fetchError);
+            errorDetails = {
+              type: 'Network Error',
+              message: fetchError.message,
+              name: fetchError.name,
+            };
+            throw fetchError;
+          }
 
           // Supabase verify endpoint odatda 302 redirect qaytaradi yoki 200 OK
           if (
@@ -335,11 +364,20 @@
           } else {
             // Xatolik bo'lsa ham, ba'zida Supabase redirect qiladi
             // Shuning uchun biz yana bir bor tekshiramiz
-            console.error('Verification error:', data);
-            throw new Error(
-              data.message ||
-                data.error_description ||
+            console.error('Verification error:', responseData);
+            errorDetails = {
+              type: 'API Error',
+              status: responseStatus,
+              message:
+                responseData?.message ||
+                responseData?.error_description ||
                 'Email tasdiqlashda xatolik yuz berdi',
+              data: responseData,
+            };
+            throw new Error(
+              responseData?.message ||
+                responseData?.error_description ||
+                `Email tasdiqlashda xatolik yuz berdi (Status: ${responseStatus})`,
             );
           }
         } catch (error) {
@@ -349,11 +387,31 @@
           title.textContent = 'Xatolik';
           message.textContent =
             error.message || 'Email tasdiqlashda xatolik yuz berdi.';
+
+          // Xatolik ma'lumotlarini batafsil ko'rsatish
+          const errorInfo = errorDetails || {
+            type: error.name || 'Unknown Error',
+            message: error.message || "Noma'lum xatolik",
+          };
+
+          const detailedErrorInfo = `
+            <div class="status error" style="text-align: left; font-size: 12px; margin-top: 10px; max-height: 300px; overflow-y: auto;">
+              <strong>Xatolik tafsilotlari:</strong><br>
+              <small><strong>Xatolik turi:</strong> ${errorInfo.type || "Noma'lum"}</small><br>
+              ${errorInfo.status ? `<small><strong>HTTP Status:</strong> ${errorInfo.status}</small><br>` : ''}
+              <small><strong>Xatolik xabari:</strong> ${errorInfo.message || error.message || "Noma'lum"}</small><br>
+              ${verifyUrl ? `<small><strong>Verify URL:</strong> <a href="${verifyUrl.toString()}" target="_blank" style="color: #3b82f6; word-break: break-all;">${verifyUrl.toString()}</a></small><br>` : ''}
+              ${responseData ? `<small><strong>Response Data:</strong> <pre style="background: #f3f4f6; padding: 5px; border-radius: 4px; overflow-x: auto; font-size: 10px;">${JSON.stringify(responseData, null, 2).substring(0, 500)}${JSON.stringify(responseData).length > 500 ? '...' : ''}</pre></small><br>` : ''}
+              ${error.stack ? `<small><strong>Stack Trace:</strong> <pre style="background: #f3f4f6; padding: 5px; border-radius: 4px; overflow-x: auto; font-size: 10px;">${error.stack.substring(0, 300)}...</pre></small><br>` : ''}
+            </div>
+          `;
+
           status.innerHTML = `
                     <div class="status error">
                         <strong>Xatolik:</strong> ${error.message || "Noma'lum xatolik"}<br>
                         <small>Iltimos, quyidagi ma'lumotlarni tekshiring:</small>
                     </div>
+                    ${detailedErrorInfo}
                     ${debugInfo}
                 `;
           actions.innerHTML = `
