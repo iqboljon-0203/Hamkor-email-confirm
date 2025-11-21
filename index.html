@@ -188,6 +188,33 @@
       console.log('Email:', email);
       console.log('========================');
 
+      // Deep link ochish funksiyasi (global)
+      const openDeepLink = (email) => {
+        const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
+
+        // Avval deep link'ni ochishga harakat qilamiz
+        window.location.href = deepLink;
+
+        // Agar 2 soniyadan keyin hali ham sahifada bo'lsak, ilova ochilmagan
+        setTimeout(() => {
+          // Fallback: Play Store yoki App Store'ga yo'naltirish
+          const userAgent =
+            navigator.userAgent || navigator.vendor || window.opera;
+          if (/android/i.test(userAgent)) {
+            // Android uchun Play Store
+            window.location.href =
+              'https://play.google.com/store/apps/details?id=uz.hamkor.talim';
+          } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            // iOS uchun App Store
+            window.location.href =
+              'https://apps.apple.com/app/hamkor-talim/id123456789'; // O'z App Store URL'ingizni qo'ying
+          }
+        }, 2000);
+      };
+
+      // Global funksiya yaratish
+      window.openApp = (email) => openDeepLink(email);
+
       // Supabase konfiguratsiyasi
       // Bu qiymatlarni o'z Supabase loyihangizdan oling
       const SUPABASE_URL = window.location.hostname.includes('localhost')
@@ -236,15 +263,15 @@
           status.innerHTML =
             '<div class="status success">Email muvaffaqiyatli tasdiqlandi!</div>';
 
-          const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
           actions.innerHTML = `
-                    <a href="${deepLink}" class="button" id="openApp">Mobil ilovani ochish</a>
+                    <button onclick="openApp('${email || ''}')" class="button" id="openApp" style="border: none; cursor: pointer; width: 100%;">Mobil ilovani ochish</button>
                     <br>
-                    <a href="/" class="button button-secondary" style="margin-top: 10px;">Bosh sahifaga qaytish</a>
+                    <button onclick="window.location.reload()" class="button button-secondary" style="margin-top: 10px; border: none; cursor: pointer; width: 100%;">Sahifani yangilash</button>
                 `;
 
+          // Avtomatik ravishda ochishga harakat qilish
           setTimeout(() => {
-            window.location.href = deepLink;
+            openDeepLink(email);
           }, 2000);
           return;
         }
@@ -264,7 +291,7 @@
                     ${debugInfo}
                 `;
           actions.innerHTML =
-            '<a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>';
+            '<button onclick="window.location.reload()" class="button button-secondary" style="border: none; cursor: pointer;">Sahifani yangilash</button>';
           return;
         }
 
@@ -277,7 +304,7 @@
           status.innerHTML =
             '<div class="status error">Type: ' + type + '</div>';
           actions.innerHTML =
-            '<a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>';
+            '<button onclick="window.location.reload()" class="button button-secondary" style="border: none; cursor: pointer;">Sahifani yangilash</button>';
           return;
         }
 
@@ -323,15 +350,15 @@
             status.innerHTML =
               '<div class="status success">Email muvaffaqiyatli tasdiqlandi!</div>';
 
-            const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
             actions.innerHTML = `
-                        <a href="${deepLink}" class="button" id="openApp">Mobil ilovani ochish</a>
+                        <button onclick="openApp('${email || ''}')" class="button" id="openApp" style="border: none; cursor: pointer; width: 100%;">Mobil ilovani ochish</button>
                         <br>
-                        <a href="/" class="button button-secondary" style="margin-top: 10px;">Bosh sahifaga qaytish</a>
+                        <button onclick="window.location.reload()" class="button button-secondary" style="margin-top: 10px; border: none; cursor: pointer; width: 100%;">Sahifani yangilash</button>
                     `;
 
+            // Avtomatik ravishda ochishga harakat qilish
             setTimeout(() => {
-              window.location.href = deepLink;
+              openDeepLink(email);
             }, 2000);
             return;
           }
