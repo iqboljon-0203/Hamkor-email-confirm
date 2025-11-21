@@ -294,17 +294,25 @@
           // Variant 1: Token hash orqali verify qilish
 
           if (tokenHash && !tokenHash.includes('.')) {
-            // Token hash format - Supabase verify endpoint'i 'token' parametrini kutadi
+            // Supabase'ning default flow'ini ishlatish
+            // Linkni to'g'ridan-to'g'ri Supabase verify endpoint'iga yo'naltiramiz
+            // Supabase o'zi email'ni tasdiqlaydi va keyin redirect_to URL'iga yo'naltiradi
             verifyUrl = new URL(`${SUPABASE_URL}/auth/v1/verify`);
-            verifyUrl.searchParams.set('token', tokenHash); // 'token_hash' emas, 'token' ishlatamiz
+            verifyUrl.searchParams.set('token', tokenHash); // 'token' parametri
             if (type) {
               verifyUrl.searchParams.set('type', type);
             }
             // Redirect URL'ni qo'shamiz (Supabase tasdiqlagandan keyin qaytadi)
-            verifyUrl.searchParams.set(
-              'redirect_to',
-              `${window.location.origin}${window.location.pathname}?confirmed=true&email=${encodeURIComponent(email || '')}`,
+            const redirectUrl = `${window.location.origin}${window.location.pathname}?confirmed=true&email=${encodeURIComponent(email || '')}`;
+            verifyUrl.searchParams.set('redirect_to', redirectUrl);
+
+            // Fetch o'rniga, to'g'ridan-to'g'ri Supabase verify endpoint'iga redirect qilamiz
+            console.log(
+              'Redirecting to Supabase verify:',
+              verifyUrl.toString(),
             );
+            window.location.href = verifyUrl.toString();
+            return; // Redirect qilgandan keyin kod to'xtaydi
           } else {
             // Access token format - bu allaqachon tasdiqlangan bo'lishi mumkin
             // Bu holda biz faqat foydalanuvchiga xabar ko'rsatamiz
@@ -328,87 +336,9 @@
             return;
           }
 
-          console.log('Verifying URL:', verifyUrl.toString());
-
-          let response;
-          try {
-            response = await fetch(verifyUrl.toString(), {
-              method: 'GET',
-              headers: {
-                apikey: SUPABASE_ANON_KEY,
-              },
-            });
-
-            responseStatus = response.status;
-            console.log('Response status:', responseStatus);
-
-            // Response body'ni olish
-            const responseText = await response.text();
-            console.log('Response text:', responseText);
-
-            try {
-              responseData = JSON.parse(responseText);
-              console.log('Response data:', responseData);
-            } catch (parseError) {
-              responseData = { raw: responseText };
-              console.log('Response is not JSON:', responseText);
-            }
-          } catch (fetchError) {
-            console.error('Fetch error:', fetchError);
-            errorDetails = {
-              type: 'Network Error',
-              message: fetchError.message,
-              name: fetchError.name,
-            };
-            throw fetchError;
-          }
-
-          // Supabase verify endpoint odatda 302 redirect qaytaradi yoki 200 OK
-          if (
-            response.ok ||
-            response.status === 200 ||
-            response.status === 302
-          ) {
-            // Muvaffaqiyatli tasdiqlandi
-            icon.className = 'icon';
-            icon.textContent = '✅';
-            title.textContent = 'Email tasdiqlandi!';
-            message.textContent =
-              'Hisobingiz muvaffaqiyatli tasdiqlandi. Endi mobil ilovaga qaytishingiz mumkin.';
-            status.innerHTML =
-              '<div class="status success">Email muvaffaqiyatli tasdiqlandi!</div>';
-
-            // Mobil ilovaga redirect qilish
-            const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
-            actions.innerHTML = `
-                        <a href="${deepLink}" class="button" id="openApp">Mobil ilovani ochish</a>
-                        <br>
-                        <a href="/" class="button button-secondary" style="margin-top: 10px;">Bosh sahifaga qaytish</a>
-                    `;
-
-            // Avtomatik ravishda mobil ilovani ochishga harakat qilish
-            setTimeout(() => {
-              window.location.href = deepLink;
-            }, 2000);
-          } else {
-            // Xatolik bo'lsa ham, ba'zida Supabase redirect qiladi
-            // Shuning uchun biz yana bir bor tekshiramiz
-            console.error('Verification error:', responseData);
-            errorDetails = {
-              type: 'API Error',
-              status: responseStatus,
-              message:
-                responseData?.message ||
-                responseData?.error_description ||
-                'Email tasdiqlashda xatolik yuz berdi',
-              data: responseData,
-            };
-            throw new Error(
-              responseData?.message ||
-                responseData?.error_description ||
-                `Email tasdiqlashda xatolik yuz berdi (Status: ${responseStatus})`,
-            );
-          }
+          // Bu kod endi ishlamaydi, chunki yuqorida redirect qilindi
+          // Supabase verify endpoint'iga redirect qilgandan keyin, Supabase o'zi email'ni tasdiqlaydi
+          // va keyin redirect_to URL'iga yo'naltiradi (bizning sahifamizga confirmed=true bilan)
         } catch (error) {
           console.error('Error details:', error);
           icon.className = 'icon error';
