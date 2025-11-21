@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/email-confirmation",
-      "destination": "/email-confirmation.html"
+      "destination": "/index.html"
     }
   ]
 }
