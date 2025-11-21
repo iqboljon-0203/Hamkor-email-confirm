@@ -178,6 +178,7 @@
         urlParams.token_hash || urlParams.access_token || urlParams.token;
       const type = urlParams.type || 'signup';
       const email = urlParams.email;
+      const confirmed = urlParams.confirmed === 'true'; // Supabase tasdiqlagandan keyin qaytadi
 
       // Debug uchun console'ga chiqarish
       console.log('=== URL PARAMETRLARI ===');
@@ -216,7 +217,7 @@
         `;
 
         // Debug ma'lumotlari
-        console.log('Checking params:', { tokenHash, type, email });
+        console.log('Checking params:', { tokenHash, type, email, confirmed });
         console.log('Supabase URL:', SUPABASE_URL);
         console.log(
           'Supabase Key:',
@@ -224,6 +225,29 @@
             ? SUPABASE_ANON_KEY.substring(0, 20) + '...'
             : 'NOT SET',
         );
+
+        // Agar Supabase allaqachon tasdiqlagan bo'lsa (redirect_to orqali qaytgan)
+        if (confirmed) {
+          icon.className = 'icon';
+          icon.textContent = '✅';
+          title.textContent = 'Email tasdiqlandi!';
+          message.textContent =
+            'Hisobingiz muvaffaqiyatli tasdiqlandi. Endi mobil ilovaga qaytishingiz mumkin.';
+          status.innerHTML =
+            '<div class="status success">Email muvaffaqiyatli tasdiqlandi!</div>';
+
+          const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
+          actions.innerHTML = `
+                    <a href="${deepLink}" class="button" id="openApp">Mobil ilovani ochish</a>
+                    <br>
+                    <a href="/" class="button button-secondary" style="margin-top: 10px;">Bosh sahifaga qaytish</a>
+                `;
+
+          setTimeout(() => {
+            window.location.href = deepLink;
+          }, 2000);
+          return;
+        }
 
         if (!tokenHash) {
           icon.className = 'icon error';
@@ -270,12 +294,17 @@
           // Variant 1: Token hash orqali verify qilish
 
           if (tokenHash && !tokenHash.includes('.')) {
-            // Token hash format
+            // Token hash format - Supabase verify endpoint'i 'token' parametrini kutadi
             verifyUrl = new URL(`${SUPABASE_URL}/auth/v1/verify`);
-            verifyUrl.searchParams.set('token_hash', tokenHash);
+            verifyUrl.searchParams.set('token', tokenHash); // 'token_hash' emas, 'token' ishlatamiz
             if (type) {
               verifyUrl.searchParams.set('type', type);
             }
+            // Redirect URL'ni qo'shamiz (Supabase tasdiqlagandan keyin qaytadi)
+            verifyUrl.searchParams.set(
+              'redirect_to',
+              `${window.location.origin}${window.location.pathname}?confirmed=true&email=${encodeURIComponent(email || '')}`,
+            );
           } else {
             // Access token format - bu allaqachon tasdiqlangan bo'lishi mumkin
             // Bu holda biz faqat foydalanuvchiga xabar ko'rsatamiz
