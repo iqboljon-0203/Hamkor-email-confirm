@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Tasdiqlash - Hamkor Talim</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+      }
+
+      .icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        background: #10b981;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+      }
+
+      .icon.error {
+        background: #ef4444;
+      }
+
+      .icon.loading {
+        background: #3b82f6;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      h1 {
+        color: #1f2937;
+        margin-bottom: 10px;
+        font-size: 24px;
+      }
+
+      p {
+        color: #6b7280;
+        margin-bottom: 30px;
+        line-height: 1.6;
+      }
+
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 500;
+        margin-top: 10px;
+        transition: background 0.3s;
+      }
+
+      .button:hover {
+        background: #5568d3;
+      }
+
+      .button-secondary {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      .button-secondary:hover {
+        background: #d1d5db;
+      }
+
+      .status {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+
+      .status.success {
+        background: #d1fae5;
+        color: #065f46;
+      }
+
+      .status.error {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .status.info {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon loading" id="icon">⏳</div>
+      <h1 id="title">Email tasdiqlanmoqda...</h1>
+      <p id="message">Iltimos, kuting...</p>
+      <div id="status"></div>
+      <div id="actions"></div>
+    </div>
+
+    <script>
+      // URL parametrlarini olish (hash va query string'dan)
+      function getUrlParams() {
+        const params = {};
+        const fullUrl = window.location.href;
+
+        console.log('Full URL:', fullUrl);
+        console.log('Search:', window.location.search);
+        console.log('Hash:', window.location.hash);
+        console.log('Pathname:', window.location.pathname);
+
+        // Query string parametrlarini olish (?key=value)
+        if (window.location.search) {
+          const queryParams = new URLSearchParams(window.location.search);
+          queryParams.forEach((value, key) => {
+            params[key] = value;
+            console.log(`Query param: ${key} = ${value}`);
+          });
+        }
+
+        // Hash parametrlarini olish (#key=value yoki #access_token=xxx&type=xxx)
+        if (window.location.hash) {
+          const hash = window.location.hash.substring(1); // # ni olib tashlash
+          console.log('Hash string:', hash);
+
+          // Hash'ni parse qilish
+          if (hash.includes('=')) {
+            const hashParams = new URLSearchParams(hash);
+            hashParams.forEach((value, key) => {
+              params[key] = value;
+              console.log(`Hash param: ${key} = ${value}`);
+            });
+          }
+        }
+
+        // URL path'dan ham parametrlar olish (agar Supabase redirect qilgan bo'lsa)
+        // Masalan: /email-confirmation?token_hash=xxx
+        const pathParts = window.location.pathname.split('/');
+        console.log('Path parts:', pathParts);
+
+        return params;
+      }
+
+      const urlParams = getUrlParams();
+      const tokenHash =
+        urlParams.token_hash || urlParams.access_token || urlParams.token;
+      const type = urlParams.type || 'signup';
+      const email = urlParams.email;
+
+      // Debug uchun console'ga chiqarish
+      console.log('=== URL PARAMETRLARI ===');
+      console.log('URL Params object:', urlParams);
+      console.log('Token Hash:', tokenHash);
+      console.log('Type:', type);
+      console.log('Email:', email);
+      console.log('========================');
+
+      // Supabase konfiguratsiyasi
+      // Bu qiymatlarni o'z Supabase loyihangizdan oling
+      const SUPABASE_URL = window.location.hostname.includes('localhost')
+        ? 'https://skmoaeimhufhetmntiie.supabase.co' // Development
+        : 'https://skmoaeimhufhetmntiie.supabase.co'; // Production - o'zgartiring!
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbW9hZWltaHVmaGV0bW50aWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMjY4NjIsImV4cCI6MjA3ODYwMjg2Mn0.TkUAf9S2may5WIjXhCWWsKHwlAKmhEfGp8_PNLJfHzo'; // O'zgartiring!
+
+      async function confirmEmail() {
+        const icon = document.getElementById('icon');
+        const title = document.getElementById('title');
+        const message = document.getElementById('message');
+        const status = document.getElementById('status');
+        const actions = document.getElementById('actions');
+
+        // Debug ma'lumotlari
+        console.log('Checking params:', { tokenHash, type, email });
+
+        if (!tokenHash) {
+          icon.className = 'icon error';
+          icon.textContent = '❌';
+          title.textContent = 'Xatolik';
+          message.textContent = 'Tasdiqlash linkida token topilmadi.';
+          status.innerHTML = `
+                    <div class="status error">
+                        <strong>Muammo:</strong> Token hash topilmadi.<br>
+                        <small>URL: ${window.location.href}</small><br>
+                        <small>Hash: ${window.location.hash || "yo'q"}</small><br>
+                        <small>Query: ${window.location.search || "yo'q"}</small>
+                    </div>
+                `;
+          actions.innerHTML =
+            '<a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>';
+          return;
+        }
+
+        // Type tekshirish (signup yoki recovery)
+        if (type && type !== 'signup' && type !== 'recovery') {
+          icon.className = 'icon error';
+          icon.textContent = '❌';
+          title.textContent = 'Xatolik';
+          message.textContent = "Noto'g'ri tasdiqlash turi.";
+          status.innerHTML =
+            '<div class="status error">Type: ' + type + '</div>';
+          actions.innerHTML =
+            '<a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>';
+          return;
+        }
+
+        try {
+          // Supabase email confirmation uchun to'g'ri endpoint
+          // Supabase'da email confirmation avtomatik ishlaydi, lekin biz verify qilishimiz kerak
+
+          // Variant 1: Token hash orqali verify qilish
+          let verifyUrl;
+          if (tokenHash && !tokenHash.includes('.')) {
+            // Token hash format
+            verifyUrl = new URL(`${SUPABASE_URL}/auth/v1/verify`);
+            verifyUrl.searchParams.set('token_hash', tokenHash);
+            if (type) {
+              verifyUrl.searchParams.set('type', type);
+            }
+          } else {
+            // Access token format - bu allaqachon tasdiqlangan bo'lishi mumkin
+            // Bu holda biz faqat foydalanuvchiga xabar ko'rsatamiz
+            icon.className = 'icon';
+            icon.textContent = '✅';
+            title.textContent = 'Email tasdiqlandi!';
+            message.textContent = 'Hisobingiz muvaffaqiyatli tasdiqlandi.';
+            status.innerHTML =
+              '<div class="status success">Email muvaffaqiyatli tasdiqlandi!</div>';
+
+            const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
+            actions.innerHTML = `
+                        <a href="${deepLink}" class="button" id="openApp">Mobil ilovani ochish</a>
+                        <br>
+                        <a href="/" class="button button-secondary" style="margin-top: 10px;">Bosh sahifaga qaytish</a>
+                    `;
+
+            setTimeout(() => {
+              window.location.href = deepLink;
+            }, 2000);
+            return;
+          }
+
+          console.log('Verifying URL:', verifyUrl.toString());
+
+          const response = await fetch(verifyUrl.toString(), {
+            method: 'GET',
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+            },
+          });
+
+          console.log('Response status:', response.status);
+          const data = await response.json();
+          console.log('Response data:', data);
+
+          // Supabase verify endpoint odatda 302 redirect qaytaradi yoki 200 OK
+          if (
+            response.ok ||
+            response.status === 200 ||
+            response.status === 302
+          ) {
+            // Muvaffaqiyatli tasdiqlandi
+            icon.className = 'icon';
+            icon.textContent = '✅';
+            title.textContent = 'Email tasdiqlandi!';
+            message.textContent =
+              'Hisobingiz muvaffaqiyatli tasdiqlandi. Endi mobil ilovaga qaytishingiz mumkin.';
+            status.innerHTML =
+              '<div class="status success">Email muvaffaqiyatli tasdiqlandi!</div>';
+
+            // Mobil ilovaga redirect qilish
+            const deepLink = `hamkor-talim://email-confirmation?email=${encodeURIComponent(email || '')}`;
+            actions.innerHTML = `
+                        <a href="${deepLink}" class="button" id="openApp">Mobil ilovani ochish</a>
+                        <br>
+                        <a href="/" class="button button-secondary" style="margin-top: 10px;">Bosh sahifaga qaytish</a>
+                    `;
+
+            // Avtomatik ravishda mobil ilovani ochishga harakat qilish
+            setTimeout(() => {
+              window.location.href = deepLink;
+            }, 2000);
+          } else {
+            // Xatolik bo'lsa ham, ba'zida Supabase redirect qiladi
+            // Shuning uchun biz yana bir bor tekshiramiz
+            console.error('Verification error:', data);
+            throw new Error(
+              data.message ||
+                data.error_description ||
+                'Email tasdiqlashda xatolik yuz berdi',
+            );
+          }
+        } catch (error) {
+          console.error('Error details:', error);
+          icon.className = 'icon error';
+          icon.textContent = '❌';
+          title.textContent = 'Xatolik';
+          message.textContent =
+            error.message || 'Email tasdiqlashda xatolik yuz berdi.';
+          status.innerHTML = `
+                    <div class="status error">
+                        <strong>Xatolik:</strong> ${error.message || "Noma'lum xatolik"}<br>
+                        <small>Iltimos, browser console'ni tekshiring (F12)</small><br>
+                        <small>Yoki email qayta yuborishni urinib ko'ring</small>
+                    </div>
+                `;
+          actions.innerHTML = `
+                    <a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>
+                `;
+        }
+      }
+
+      // Sahifa yuklanganda email confirmation'ni bajarish
+      window.addEventListener('load', confirmEmail);
+    </script>
+  </body>
+</html>
