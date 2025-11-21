@@ -201,8 +201,28 @@
         const status = document.getElementById('status');
         const actions = document.getElementById('actions');
 
+        // Debug ma'lumotlarini ekranda ko'rsatish (mobil uchun)
+        const debugInfo = `
+          <div class="status info" style="text-align: left; font-size: 12px; margin-top: 20px;">
+            <strong>Debug ma'lumotlari:</strong><br>
+            <small>Token Hash: ${tokenHash || "yo'q"}</small><br>
+            <small>Type: ${type || "yo'q"}</small><br>
+            <small>Email: ${email || "yo'q"}</small><br>
+            <small>Full URL: ${window.location.href}</small><br>
+            <small>Supabase URL: ${SUPABASE_URL}</small><br>
+            <small>Supabase Key: ${SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : "yo'q"}</small>
+          </div>
+        `;
+
         // Debug ma'lumotlari
         console.log('Checking params:', { tokenHash, type, email });
+        console.log('Supabase URL:', SUPABASE_URL);
+        console.log(
+          'Supabase Key:',
+          SUPABASE_ANON_KEY
+            ? SUPABASE_ANON_KEY.substring(0, 20) + '...'
+            : 'NOT SET',
+        );
 
         if (!tokenHash) {
           icon.className = 'icon error';
@@ -216,6 +236,7 @@
                         <small>Hash: ${window.location.hash || "yo'q"}</small><br>
                         <small>Query: ${window.location.search || "yo'q"}</small>
                     </div>
+                    ${debugInfo}
                 `;
           actions.innerHTML =
             '<a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>';
@@ -331,9 +352,9 @@
           status.innerHTML = `
                     <div class="status error">
                         <strong>Xatolik:</strong> ${error.message || "Noma'lum xatolik"}<br>
-                        <small>Iltimos, browser console'ni tekshiring (F12)</small><br>
-                        <small>Yoki email qayta yuborishni urinib ko'ring</small>
+                        <small>Iltimos, quyidagi ma'lumotlarni tekshiring:</small>
                     </div>
+                    ${debugInfo}
                 `;
           actions.innerHTML = `
                     <a href="/" class="button button-secondary">Bosh sahifaga qaytish</a>
